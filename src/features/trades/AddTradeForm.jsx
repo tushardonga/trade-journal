@@ -1,8 +1,10 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase';
+import Select from 'react-select';
 
 export default function AddTradeForm() {
     const [loading, setLoading] = useState(false);
+    const [stockOptions, setStockOptions] = useState([]);
     const [formData, setFormData] = useState({
         symbol: '',
         trade_type: 'long',
@@ -16,6 +18,30 @@ export default function AddTradeForm() {
         exit_reason: '',
         mistakes_lessons: ''
     });
+
+    useEffect(() => {
+        async function getStocks() {
+            const { data, error } = await supabase
+                .from('stocks')
+                .select('symbol, company_name')
+                .order('symbol', { ascending: true });
+
+            if (data) {
+                // react-select needs an array of { value, label } objects
+                const options = data.map(stock => ({
+                    value: stock.symbol,
+                    label: `${stock.symbol} (${stock.company_name || ''})`
+                }));
+                setStockOptions(options);
+            }
+            if (error) console.error("Error fetching stocks:", error);
+        }
+        getStocks();
+    }, []);
+
+    const handleSelectChange = (selectedOption) => {
+        setFormData({ ...formData, symbol: selectedOption ? selectedOption.value : '' });
+    };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -81,8 +107,22 @@ export default function AddTradeForm() {
 
                 {/* Symbol */}
                 <div className="space-y-2">
-                    <label className="text-sm font-medium">Symbol</label>
-                    <input name="symbol" placeholder="e.g. RELIANCE" onChange={handleChange} className="w-full border p-2 rounded" required />
+                    <label className="text-sm font-medium text-slate-700">Stock Symbol (Searchable)</label>
+                    <Select
+                        options={stockOptions}
+                        onChange={handleSelectChange}
+                        placeholder="Search stock..."
+                        isClearable
+                        className="text-sm"
+                        styles={{
+                            control: (base) => ({
+                                ...base,
+                                borderRadius: '0.5rem',
+                                borderColor: '#e2e8f0',
+                                padding: '2px'
+                            })
+                        }}
+                    />
                 </div>
 
                 {/* Quantity */}
