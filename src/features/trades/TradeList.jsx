@@ -1,9 +1,9 @@
-import { useEffect, useState, useContext } from 'react';
-import { supabase } from '../../lib/supabase';
-import { DateContext } from '../../context/DateContext';
-import { Trash2, Edit3, TrendingUp, TrendingDown } from 'lucide-react';
+import { useEffect, useState, useContext } from "react";
+import { supabase } from "../../lib/supabase";
+import { DateContext } from "../../context/DateContext";
+import { Trash2, Edit3, TrendingUp, TrendingDown } from "lucide-react";
 
-export default function TradeList() {
+export default function TradeList({ onEdit, onDelete }) {
   const [trades, setTrades] = useState([]);
   const [loading, setLoading] = useState(true);
   const { dateRange } = useContext(DateContext);
@@ -15,32 +15,44 @@ export default function TradeList() {
   async function fetchTrades() {
     setLoading(true);
     const { data, error } = await supabase
-      .from('trades')
-      .select('*')
-      .gte('entry_timestamp', dateRange.from.toISOString())
-      .lte('entry_timestamp', dateRange.to.toISOString())
-      .order('entry_timestamp', { ascending: false });
+      .from("trades")
+      .select("*")
+      .gte("entry_timestamp", dateRange.from.toISOString())
+      .lte("entry_timestamp", dateRange.to.toISOString())
+      .order("entry_timestamp", { ascending: false });
 
     if (!error) setTrades(data);
     setLoading(false);
   }
 
-  async function deleteTrade(id) {
-    if (window.confirm("Delete this trade?")) {
-      const { error } = await supabase.from('trades').delete().eq('id', id);
-      if (!error) fetchTrades(); // Refresh list
-    }
-  }
+  const handleDelete = async (id) => {
+    const confirmed = window.confirm(
+      "Are you sure you want to delete this trade? This cannot be undone.",
+    );
+    if (!confirmed) return;
 
-  if (loading) return <div className="p-10 text-center text-slate-500">Loading trades...</div>;
+    const { error } = await supabase.from("trades").delete().eq("id", id);
+    if (error) {
+      alert(error.message);
+    } else {
+      onDelete(); // Refresh parent
+    }
+  };
+
+  if (loading)
+    return (
+      <div className="p-10 text-center text-slate-500">Loading trades...</div>
+    );
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border overflow-hidden mt-8">
+    <div className="bg-white rounded-xl shadow-sm border overflow-hidden my-8">
       <div className="px-6 py-4 border-b bg-slate-50 flex justify-between items-center">
         <h3 className="font-bold text-slate-700">Recent Trades</h3>
-        <span className="text-sm text-slate-500">{trades.length} trades found</span>
+        <span className="text-sm text-slate-500">
+          {trades.length} trades found
+        </span>
       </div>
-      
+
       <div className="overflow-x-auto">
         <table className="w-full text-left text-sm">
           <thead className="bg-slate-50 text-slate-600 uppercase text-xs font-semibold">
@@ -71,19 +83,36 @@ export default function TradeList() {
                   )}
                 </td>
                 <td className="px-6 py-4 font-bold">{trade.symbol}</td>
-                <td className="px-6 py-4 capitalize text-slate-500">{trade.trade_type}</td>
+                <td className="px-6 py-4 capitalize text-slate-500">
+                  {trade.trade_type}
+                </td>
                 <td className="px-6 py-4">{trade.entry_price}</td>
                 <td className="px-6 py-4">{trade.exit_price}</td>
                 <td className="px-6 py-4">{trade.quantity}</td>
-                <td className={`px-6 py-4 font-bold ${trade.pnl_amount >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                  {trade.pnl_amount >= 0 ? '+' : ''}{trade.pnl_amount.toLocaleString()}
+                <td
+                  className={`px-6 py-4 font-bold ${trade.pnl_amount >= 0 ? "text-green-600" : "text-red-600"}`}
+                >
+                  {trade.pnl_amount >= 0 ? "+" : ""}
+                  {trade.pnl_amount.toLocaleString()}
                 </td>
-                <td className={`px-6 py-4 font-medium ${trade.roc_percentage >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                <td
+                  className={`px-6 py-4 font-medium ${trade.roc_percentage >= 0 ? "text-green-500" : "text-red-500"}`}
+                >
                   {trade.roc_percentage.toFixed(2)}%
                 </td>
                 <td className="px-6 py-4 text-right space-x-3">
-                  <button className="text-slate-400 hover:text-blue-600"><Edit3 size={18} /></button>
-                  <button onClick={() => deleteTrade(trade.id)} className="text-slate-400 hover:text-red-600"><Trash2 size={18} /></button>
+                  <button
+                    className="text-slate-400 hover:text-blue-600"
+                    onClick={() => onEdit(trade)}
+                  >
+                    <Edit3 size={18} />
+                  </button>
+                  <button
+                    onClick={() => handleDelete(trade.id)}
+                    className="text-slate-400 hover:text-red-600"
+                  >
+                    <Trash2 size={18} />
+                  </button>
                 </td>
               </tr>
             ))}
